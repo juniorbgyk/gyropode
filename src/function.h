@@ -4,7 +4,8 @@
 #include <Arduino.h>
 
 // Exemple de déclaration de fonction
-void InitGPIO(void);
+void initGyro(void);
+float getAngle(void);
 
 
 #endif
