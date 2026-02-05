@@ -6,6 +6,8 @@
 // Exemple de déclaration de fonction
 void initGyro(void);
 float getAngle(void);
+void confGPIO(void);
+void calibrageGyroscope(int number = 1000);
 
 
 #endif
