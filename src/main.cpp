@@ -9,8 +9,6 @@ void setup() {
 }
 
 void loop() {
-  // se charger de la compensation température
-  float angle = getAngle();
-  Serial.printf("Angle: %.2f\n", angle);
+  
   delay(5); // Rapidité de lecture
 }

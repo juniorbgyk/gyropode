@@ -69,7 +69,7 @@ void initGyro() {
 
 float getAngle() {
     float gyroY;
-    if (millis() >= 7000) // Si 3 seconde est écoulée début de tache
+    if (millis() >= 3000) // Si 3 seconde est écoulée début de tache
     {
         //on est précis mais plus lent
         confianceGyro = 0.98;
