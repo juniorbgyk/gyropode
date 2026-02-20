@@ -1,38 +1,41 @@
 #include <Arduino.h>
 #include "function.h"
 #include <Wire.h>
-#include <MPU6050.h>
+
+static float angle, anglecible = 0.0;
+
+extern float kp, kd, entrerFiltre, offsetDZ1, offsetDZ2, angleAcc, gyroZ;
+
+float ec, err, last_err;
+
+extern float Te;    // période d'échantillonage en ms
+extern float Tau; // constante de temps du filtre en ms
 
 void moveTask(void *parametres) //tahe asservissement et deplacement
 {
+  TickType_t xLastWakeTime;
+  xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
-    vTaskDelay(1000); //La tache se met en pause pendant x temps et le processeur exécute d'autres tâches en attendant 
-  }
-}
+    angle = getAngle();
+    err = angle - anglecible; // angle cible est 0
+    ec = kp * err;
+    last_err = err;
+    Serial.printf("%lf %lf %lf \n", angle, angleAcc, gyroZ);
 
-void angleTask(void *parametres)
-{
-  while (1)
-  { 
-    vTaskDelay(1000);
-  }
-}
-
-void vitesseTask(void *parametres)
-{
-  while (1)
-  { 
-    vTaskDelay(1000);
+    deplacement(0,ec);
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
 
 void ihmTask(void *parametres)
 {
+  TickType_t xLastWakeTime;
+  xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
     serialEvent();
-    vTaskDelay(1000);
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
 
@@ -44,29 +47,9 @@ void setup() {
     "MoveTask",     // Nom
     10000,          // Taille de pile
     NULL,          // Paramètre
-    6,             // Priorité
+    3,             // Priorité
     NULL,      // Handle (optionnel)
     1
-  );
-
-  xTaskCreatePinnedToCore( 
-    angleTask,       
-    "AngleTask",
-    10000,        
-    NULL,          
-    5,             
-    NULL,
-    1         
-  );
-
-  xTaskCreatePinnedToCore( 
-    vitesseTask,       
-    "VitesseTask",     
-    10000,       
-    NULL,          
-    4,             
-    NULL,
-    1        
   );
 
   xTaskCreatePinnedToCore( 
@@ -74,9 +57,9 @@ void setup() {
     "IhmTask",    
     10000,         
     NULL,          
-    3,            
+    2,            
     NULL,
-    0 // Core 0 pour pour eviter latence communication sans fil impacte gyro et asservissement         
+    1 // Core 0 pour pour eviter latence communication sans fil impacte gyro et asservissement         
   );
 
   vTaskDelete(NULL);  //a la fin du setup pour pas executer le loop

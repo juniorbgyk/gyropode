@@ -7,10 +7,10 @@
 void initGyro(void);
 float getAngle(void);
 void confGPIO(void);
-void calibrageGyroscope(int number = 1000);
-void deplacement(bool mode, unsigned int vitesse1, unsigned int vitesse2 = 0);
+void deplacement(bool mode, signed int vitesse1, signed int vitesse2 = 0);
 float getVitesse(void);
 void reception(char ch);
 void serialEvent();
+void calculCoeffFiltre(void);
 
 #endif

@@ -22,7 +22,6 @@
 //constante
 #define rayonRoue 0.0325 //en mètre
 #define PPR 823 //Pulses Per Revolution, nombre de ticks par tour de roue
-#define offsetDZ 600
 #define CanalM1P 0
 #define CanalM1N 1
 #define CanalM2P 2
