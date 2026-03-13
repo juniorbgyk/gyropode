@@ -2,11 +2,16 @@
 #include "function.h"
 #include <Wire.h>
 
-static float angle, anglecible = 0.0;
+
+//kp=58.1, Kd= 2.28, vdd=7.2
+static float angle, anglecible = -7.0;
 
 extern float kp, kd, entrerFiltre, offsetDZ1, offsetDZ2, angleAcc, gyroZ;
+extern float ax, ay, gz;
 
-float ec, err, last_err;
+volatile bool flag = false;
+
+float ec, err, last_err = 0;
 
 extern float Te;    // période d'échantillonage en ms
 extern float Tau; // constante de temps du filtre en ms
@@ -17,14 +22,13 @@ void moveTask(void *parametres) //tahe asservissement et deplacement
   xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
-    angle = getAngle();
-    err = angle - anglecible; // angle cible est 0
-    ec = kp * err;
-    last_err = err;
-    Serial.printf("%lf %lf %lf \n", angle, angleAcc, gyroZ);
-
-    deplacement(0,ec);
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
+    deplacement(0, kp);
+    Serial.printf("%lf \n", getVitesse());
+    // angle = getAngle();
+    // err = anglecible - angle; // angle cible est 0
+    // ec = (kp * err) - (kd * (-gz * 180.0 / PI));
+    // deplacement(0,-ec);
+     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
 

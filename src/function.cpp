@@ -11,10 +11,11 @@ ESP32Encoder encoder2;
 
 //variable globale
 float kp=0, kd=0, offsetDZ1=585.5, offsetDZ2 = 601.0, gyroZ, angleAcc;
+static int32_t lastIncrement1 = 0, lastIncrement2 = 0;
 
 //mpu6050
 static float angle = 0.0;
-int16_t ax, ay, gz;
+float ax, ay, gz;
 char FlagCalcul = 0;
 float entrerFiltre, anglefiltrer = 0;
 // coefficient du filtre
@@ -71,18 +72,16 @@ void initGyro() {
     mpu.getEvent(&a, &g, &temp);
     ay = a.acceleration.y;
     ax = a.acceleration.x;
-    angle = atan2(ay, ax) * 180.0 / PI; //calcul de l'angle grace a la foce exercer sur l'axe Y et Z   
+    angle = atan2(ay, ax) * 180.0 / PI; //calcul de l'angle grace a la foce exercer sur l'axe Y et Z  
+
     // calcul coeff filtre
     calculCoeffFiltre();
 
     //init encoder
-    ESP32Encoder::useInternalWeakPullResistors = puType::up; //utilisation module hardaware
-	encoder1.attachFullQuad(M1A, M1B);
-	encoder2.attachFullQuad(M2A, M2B);
+    encoder1.attachFullQuad(M1A, M1B);
+    encoder2.attachFullQuad(M2A, M2B);
     encoder1.setCount(0);
     encoder2.setCount(0);
-
-    lastVitesseTime = millis();
 
 }
 
@@ -95,7 +94,6 @@ float getAngle() {
 
 
     // Utilisation du Gyroscope Y
-    // gyroZ = gy / 131.0; // ConentrerFiltrertir en degrés/s
     gyroZ = -(gz * Tau / 1000.0) * 180.0 / PI; // ConentrerFiltrertir en degrés pour la période d'échantillonnage
 
     // Calcul de l'angle via l'Accéléromètre
@@ -131,7 +129,7 @@ void deplacement(bool mode, signed int vitesse1, signed int vitesse2){
             ledcWrite(CanalM2N, 0);
         } 
     }
-    else{ //controle roue distincte
+    else{ //controle roue distincte !! A modifier
         if (vitesse1 >= 0)
         {
             ledcWrite(CanalM1P, offsetDZ1+vitesse1);
@@ -154,16 +152,13 @@ void deplacement(bool mode, signed int vitesse1, signed int vitesse2){
 }
 
 float getVitesse(void){
-    static unsigned long lastVitesseTime = 0;
-    unsigned long currentVitesseTime, dt;
     float vitesse1, vitesse2;
-    int32_t increment1, increment2, lastIncrement1 = 0, lastIncrement2 = 0;
-    
+    static int32_t increment1, increment2;
     // Récupération des incréments depuis les encodeurs
-    increment1 = encoder1.getCount() /4;
-    increment2 = encoder2.getCount() /4;
-    vitesse1 = ((increment1 / PPR) * (rayonRoue * 2 * PI)) / 0.005; // m/s
-    vitesse2 = ((increment2 / PPR) * (rayonRoue * 2 * PI)) / 0.005; // m/s;
+    increment1 = encoder1.getCount() / 2;
+    increment2 = encoder2.getCount() / 2;
+    vitesse1 = (((float)(increment1 - lastIncrement1) / PPR) * (rayonRoue * 2 * PI)) / 0.005; // m/s
+    vitesse2 = (((float)(increment2 - lastIncrement2) / PPR) * (rayonRoue * 2 * PI)) / 0.005; // m/s;
     lastIncrement1 = increment1;
     lastIncrement2 = increment2;
 
