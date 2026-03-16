@@ -10,8 +10,8 @@ ESP32Encoder encoder1;
 ESP32Encoder encoder2;
 
 //variable globale
-float kp=0, kd=0, offsetDZ1=585.5, offsetDZ2 = 601.0, gyroZ, angleAcc;
-static int32_t lastIncrement1 = 0, lastIncrement2 = 0;
+float kp=0, kd=0, v_kd=0, v_kp=0, offsetDZ1=585.5, offsetDZ2 = 601.0, gyroZ, angleAcc;
+int32_t lastIncrement1 = 0, lastIncrement2 = 0;
 
 //mpu6050
 static float angle = 0.0;
@@ -21,7 +21,8 @@ float entrerFiltre, anglefiltrer = 0;
 // coefficient du filtre
 float Te = 5;    // période d'échantillonage en ms
 float Tau = 200; // constante de temps du filtre en ms
-float A, B;
+float Tauvitesse = 88;
+float A, B, C, D;
 
 // Paramètres : Tolérance de 1.5 à 2 degrés
 float angletolerer = 0.0;
@@ -55,6 +56,8 @@ void confGPIO(void){
 void calculCoeffFiltre(void){
     A = 1 / (1 + Tau / Te);
     B = Tau / Te * A;
+    C = 1 / (1 + (Tauvitesse) / Te);
+    D = (Tauvitesse) / Te * C;
 }
 
 void initGyro() {
@@ -152,8 +155,9 @@ void deplacement(bool mode, signed int vitesse1, signed int vitesse2){
 }
 
 float getVitesse(void){
-    float vitesse1, vitesse2;
-    static int32_t increment1, increment2;
+    float vitesse1, vitesse2, vitesse;
+    static float vitesseFiltrer;
+    int32_t increment1, increment2;
     // Récupération des incréments depuis les encodeurs
     increment1 = encoder1.getCount() / 2;
     increment2 = encoder2.getCount() / 2;
@@ -162,7 +166,10 @@ float getVitesse(void){
     lastIncrement1 = increment1;
     lastIncrement2 = increment2;
 
-    return (vitesse1 + vitesse2) / 2.0; // Retourne la vitesse gyropode
+    vitesse = (-(vitesse1 - vitesse2)) / 2.0; // Retourne la vitesse gyropode
+    vitesseFiltrer =  C * vitesse + D * vitesseFiltrer;
+
+    return vitesseFiltrer;
 }
 
 
@@ -196,6 +203,13 @@ void reception(char ch)
     }
     if (commande == "Kd"){
       kd = valeur.toFloat();
+    }
+
+    if (commande == "vKp"){
+      v_kp = valeur.toFloat();
+    }
+    if (commande == "vKd"){
+      v_kd = valeur.toFloat();
     }
 
     if (commande == "un"){

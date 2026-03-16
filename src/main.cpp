@@ -4,14 +4,14 @@
 
 
 //kp=58.1, Kd= 2.28, vdd=7.2
-static float angle, anglecible = -7.0;
+static float angle, offsetAngle = -7.0, vitesse, vitesseCible = 0.0;
 
-extern float kp, kd, entrerFiltre, offsetDZ1, offsetDZ2, angleAcc, gyroZ;
+extern float kp, kd, v_kd, v_kp, entrerFiltre, offsetDZ1, offsetDZ2, angleAcc, gyroZ;
 extern float ax, ay, gz;
 
 volatile bool flag = false;
 
-float ec, err, last_err = 0;
+float ec, err, err_vitessse, ajustVitesse, lastVitesse = 0;
 
 extern float Te;    // période d'échantillonage en ms
 extern float Tau; // constante de temps du filtre en ms
@@ -22,12 +22,15 @@ void moveTask(void *parametres) //tahe asservissement et deplacement
   xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
-    deplacement(0, kp);
-    Serial.printf("%lf \n", getVitesse());
-    // angle = getAngle();
-    // err = anglecible - angle; // angle cible est 0
-    // ec = (kp * err) - (kd * (-gz * 180.0 / PI));
-    // deplacement(0,-ec);
+    angle = getAngle();
+    vitesse = getVitesse();
+    err_vitessse = vitesseCible - vitesse;
+    ajustVitesse = (err_vitessse * v_kp) - (v_kd*(vitesse-lastVitesse));
+    err = (ajustVitesse+offsetAngle) - angle; 
+    ec = ((kp * err) - (kd * (-gz * 180.0 / PI)));
+    lastVitesse = vitesse;
+    printf("%lf %lf %lf %lf \n", kp, kd, v_kp, v_kd);
+    deplacement(0,-ec);
      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
