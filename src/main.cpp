@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "function.h"
 #include <Wire.h>
-
+#include <BluetoothSerial.h>
 
 //kp=58.1, Kd= 2.28, vdd=7.2
 static float angle, offsetAngle = -7.0, vitesse, vitesseCible = 0.0;
@@ -16,6 +16,8 @@ float ec, err, err_vitessse, ajustVitesse, lastVitesse = 0;
 extern float Te;    // période d'échantillonage en ms
 extern float Tau; // constante de temps du filtre en ms
 
+BluetoothSerial SerialBT;
+
 void moveTask(void *parametres) //tahe asservissement et deplacement
 {
   TickType_t xLastWakeTime;
@@ -29,7 +31,7 @@ void moveTask(void *parametres) //tahe asservissement et deplacement
     err = (ajustVitesse+offsetAngle) - angle; 
     ec = ((kp * err) - (kd * (-gz * 180.0 / PI)));
     lastVitesse = vitesse;
-    printf("%lf %lf %lf %lf \n", kp, kd, v_kp, v_kd);
+    // printf("%lf %lf %lf %lf \n", kp, kd, v_kp, v_kd);
     deplacement(0,-ec);
      vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
@@ -41,6 +43,20 @@ void ihmTask(void *parametres)
   xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
+  if (SerialBT.available()) {
+    char commande = SerialBT.read();
+    Serial.print("Reçu : ");
+    Serial.println(commande);
+
+    if (commande == 'R') {
+      LED_ON;
+      Serial.println("LED rouge ALLUMÉE");
+    }
+    else if (commande == 'r') {
+      LED_OFF;
+      Serial.println("LED rouge ÉTEINTE");
+    }
+  }
     serialEvent();
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
@@ -48,6 +64,7 @@ void ihmTask(void *parametres)
 
 void setup() {
   initGyro();
+  SerialBT.begin("malcom");
   //demander comment estimer taille pile pour chaque tache
   xTaskCreatePinnedToCore(
     moveTask,       // Fonction de la tâche
@@ -68,7 +85,6 @@ void setup() {
     NULL,
     1 // Core 0 pour pour eviter latence communication sans fil impacte gyro et asservissement         
   );
-
   vTaskDelete(NULL);  //a la fin du setup pour pas executer le loop
 }
 
