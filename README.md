@@ -1,3 +1,3 @@
 c'est gyropode ! Asservi ! 
-![photo gyro](image/gyro.jpeg)
-![photo ihm](image/ihm.png)
+![photo gyro](gyro.jpeg)
+![photo ihm](ihm.png)
