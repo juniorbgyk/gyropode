@@ -3,57 +3,78 @@
 #include <Wire.h>
 #include <BluetoothSerial.h>
 
-//kp=58.1, Kd= 2.28, vdd=7.2
+// Variables globales de contrôle utilisées dans la boucle principale
 static float angle, vitesse, vitesseCible = 0.0;
 
+// Variables externes déclarées dans function.cpp
 extern float kp, kd, v_kd, v_kp, entrerFiltre, offsetDZ1, offsetDZ2, angleAcc, gyroZ, offsetAngle;
 extern float ax, ay, gz, vitesse1, vitesse2;
 
-volatile bool flag = false;
+volatile bool flag = false; // drapeau volatile pour synchronisation éventuelle
 
+// Variables de calcul d'asservissement
 float ec, err, err_vitessse, ajustVitesse, err_lastVitesse = 0;
-int joystickX, joystickY;
+int joystickX, joystickY; // valeurs de commande du joystick reçues en Bluetooth
 
-extern float Te;    // période d'échantillonage en ms
-extern float Tau; // constante de temps du filtre en ms
+// Paramètres de filtrage externes définis dans function.cpp
+extern float Te;    // période d'échantillonnage en ms
+extern float Tau;   // constante de temps du filtre en ms
 
-BluetoothSerial SerialBT;
+BluetoothSerial SerialBT; // Interface Bluetooth série
 
-void moveTask(void *parametres) //tahe asservissement et deplacement
+void moveTask(void *parametres) // tâche d'asservissement et de déplacement
 {
+  //Essentielle pouur l'utilisation périodique de la tache
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
-    //Corrigez VKP parce qu'il se rattrape trop violemment sinon asservisement ok et deplacement en Y ok reste aussi deplacement en X
+    // Lecture des capteurs et mise à jour de l'état actuel
     angle = getAngle();
     vitesse = getVitesse();
-    if (joystickY >= 0) vitesseCible = joystickY*(-0.0041)/4.0;
-    if (joystickY < 0) vitesseCible = joystickY*(-0.0041)/2.0;
+
+    // Conversion de la commande joystick Y en consigne de vitesse cible
+    if (joystickY >= 0) vitesseCible = joystickY * (-0.0041) / 4.0; //ici /4 acr moteur était trop rapide dans ce sens 
+    if (joystickY < 0) vitesseCible = joystickY * (-0.0041) / 2.0;
+
+    // Erreur de vitesse cible par rapport à la vitesse mesurée
     err_vitessse = vitesseCible - vitesse;
-    ajustVitesse = (err_vitessse * v_kp) + (v_kd*(err_vitessse-err_lastVitesse));
+
+    // Régulateur PD pour la vitesse
+    ajustVitesse = (err_vitessse * v_kp) + (v_kd * (err_vitessse - err_lastVitesse));
+
+    // Limitation de l'action de vitesse pour éviter de trop pousser les moteurs
     if (ajustVitesse > 10) ajustVitesse = 10;
     if (ajustVitesse < -10) ajustVitesse = -10;
-    err = (ajustVitesse+offsetAngle) - angle; 
+
+    // Calcul de l'erreur d'angle à corriger pour maintenir l'équilibre
+    err = (ajustVitesse + offsetAngle) - angle;
     ec = ((kp * err) - (kd * (-gz * 180.0 / PI)));
     err_lastVitesse = err_vitessse;
-    if (-ec >= 0) deplacement(1, -ec+(joystickX), (-ec-10)-(joystickX));
-    if (-ec < 0) deplacement(1, -ec+(joystickX), (-ec+10)-(joystickX));
-    Serial.printf("%f %f %f %f \n", vitesseCible, vitesse, offsetAngle, angle);
-     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
+
+    // Ordres de déplacement avec compensation de l'axe X du joystick
+    if (-ec >= 0)
+      deplacement(1, -ec + joystickX, (-ec - 10) - joystickX); //-ec-10 pour compenser le fait que le robot tend vers la gauche
+    if (-ec < 0)
+      deplacement(1, -ec + joystickX, (-ec + 10) - joystickX);
+
+    // Serial.printf("%f %f %f %f \n", vitesseCible, vitesse, offsetAngle, angle); // Affichage de données pour le debug
+
+    // Attente périodique sur base de Te
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
 
-void ihmTask(void *parametres)
+void ihmTask(void *parametres) // tâche d'interface homme-machine
 {
+  //Essentielle pouur l'utilisation périodique de la tache
   TickType_t xLastWakeTime;
   xLastWakeTime = xTaskGetTickCount();
   while (1)
   {
-    // Serial.println("Vbat:");
-    // Serial.println(VBAT_VAL);
+    // Lecture des données Bluetooth si une commande est disponible
     if (SerialBT.available()) {
-      LED_ON;
+      LED_ON; // allume une LED pour signaler la connexion Bluetooth active
       char commande = SerialBT.read();
 
       if (commande == 'X') {
@@ -64,40 +85,53 @@ void ihmTask(void *parametres)
       }
     }
 
+    // Envoi des informations de tension et vitesse au client Bluetooth connecté
     if (SerialBT.hasClient()) {
-      SerialBT.printf("*v %.2f", VBAT_VAL);
-      SerialBT.printf("*s %.2f", vitesse);
+      SerialBT.printf("*v %.2f", VBAT_VAL); //*v est la clé pour etre comprise par le client Bluetooth comme une donnée utilisable
+      SerialBT.printf("*s %.2f", vitesse); //*v est la clé pour etre comprise par le client Bluetooth comme une donnée utilisable
+      //les clés sont configurable depuis l'app utilisé (bluetooth electronics)
     }
+
+    // Traitement des commandes série USB
     serialEvent();
+
+    // Attente périodique sur base de Te
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(Te));
   }
 }
 
 void setup() {
+  // Initialisation du gyroscope, des encodeurs et des moteurs
   initGyro();
+
+  // Démarrage de la communication Bluetooth avec le nom de l'appareil
   SerialBT.begin("malcom");
-  //demander comment estimer taille pile pour chaque tache
+
+  // Création de la tâche de mouvement
   xTaskCreatePinnedToCore(
-    moveTask,       // Fonction de la tâche
-    "MoveTask",     // Nom
-    10000,          // Taille de pile
-    NULL,          // Paramètre
-    3,             // Priorité
-    NULL,      // Handle (optionnel)
-    1
+    moveTask,       // fonction de la tâche
+    "MoveTask",    // nom de la tâche
+    10000,          // taille de pile en octets
+    NULL,           // paramètre passé à la tâche
+    3,              // priorité
+    NULL,           // handle de tâche non utilisé
+    1               // exécution sur le core 1
   );
 
-  xTaskCreatePinnedToCore( 
-    ihmTask,    
-    "IhmTask",    
-    10000,         
-    NULL,          
-    2,            
+  // Création de la tâche d'interface homme-machine
+  xTaskCreatePinnedToCore(
+    ihmTask,
+    "IhmTask",
+    10000,
     NULL,
-    1 // Core 0 pour pour eviter latence communication sans fil impacte gyro et asservissement         
+    2,
+    NULL,
+    1 // exécution sur le core 1
   );
-  vTaskDelete(NULL);  //a la fin du setup pour pas executer le loop
+
+  vTaskDelete(NULL); //a la fin du setup pour supprimer la tâche setup après execution pour empêcher l'exécution de loop()
 }
 
 void loop() {
+  // Vide : les tâches FreeRTOS gèrent le programme
 }

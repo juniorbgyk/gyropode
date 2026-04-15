@@ -3,7 +3,7 @@
 #include "main.hpp"
 #include <Arduino.h>
 
-// Exemple de déclaration de fonction
+// Déclaration des fonctions
 void initGyro(void);
 float getAngle(void);
 void confGPIO(void);

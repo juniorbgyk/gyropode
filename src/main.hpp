@@ -7,6 +7,10 @@
 #define MOT2P       33
 #define MOT2N       32
 #define LED         16
+#define CanalM1P 0
+#define CanalM1N 1
+#define CanalM2P 2
+#define CanalM2N 3
 
 //INPUT
 #define M1A       18
@@ -22,12 +26,9 @@
 //constante
 #define rayonRoue 0.0325 //en mètre
 #define PPR 823.1 //Pulses Per Revolution, nombre de ticks par tour de roue
-#define CanalM1P 0
-#define CanalM1N 1
-#define CanalM2P 2
-#define CanalM2N 3
 
-// Digital IO access macro
+
+// Digital IO macro
 #define M1A_VAL    (digitalRead(M1A))
 #define M1B_VAL    (digitalRead(M1B))
 #define M2A_VAL    (digitalRead(M2A))
