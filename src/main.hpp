@@ -34,6 +34,6 @@
 #define M2B_VAL    (digitalRead(M2B))
 #define LED_OFF (digitalWrite(LED,LOW))
 #define LED_ON (digitalWrite(LED,HIGH))
-#define VBAT_VAL ((analogRead(VBAT_pin)*9.6)/4095.0)
+#define VBAT_VAL ((analogRead(VBAT_pin)*7.2)/4095.0)
 
 #endif

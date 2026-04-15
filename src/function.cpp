@@ -10,9 +10,10 @@ ESP32Encoder encoder1;
 ESP32Encoder encoder2;
 
 //variable globale
-float kp=0, kd=0, v_kd=0, v_kp=0, offsetDZ1=585.5, offsetDZ2 = 601.0, gyroZ, angleAcc;
+float kp=71.7, kd=2.025, v_kd=0, v_kp=44.9, offsetDZ1=585.5, offsetDZ2 = 601.0, gyroZ, angleAcc, offsetAngle = -4.52;
 int32_t lastIncrement1 = 0, lastIncrement2 = 0;
 
+float vitesse1, vitesse2, vitesse, last_vitesse1, last_vitesse2;
 //mpu6050
 static float angle = 0.0;
 float ax, ay, gz;
@@ -108,17 +109,24 @@ float getAngle() {
 }
 
 void deplacement(bool mode, signed int vitesse1, signed int vitesse2){
+      if (vitesse1 >  400)
+      {
+          vitesse1 = 400;
+      }
+      if (vitesse1 <  -400)
+      {
+          vitesse1 = -400;
+      }
+      if (vitesse2 >  400)
+      {
+          vitesse2 = 400;
+      }
+      if (vitesse2 <  -400)
+      {
+          vitesse2 = -400;
+      }
     if (!mode) // controle roue commun
     { 
-        if (vitesse1 >  400)
-        {
-            vitesse1 = 400;
-        }
-        if (vitesse1 <  -400)
-        {
-            vitesse1 = -400;
-        }
-        
         if (vitesse1 >= 0)
         {
             ledcWrite(CanalM1P, offsetDZ1+vitesse1);
@@ -136,26 +144,25 @@ void deplacement(bool mode, signed int vitesse1, signed int vitesse2){
         if (vitesse1 >= 0)
         {
             ledcWrite(CanalM1P, offsetDZ1+vitesse1);
-            digitalWrite(MOT1N, LOW);
+            ledcWrite(CanalM1N, 0);
         }
         else{
             ledcWrite(CanalM1N, offsetDZ1+abs(vitesse1));
-            digitalWrite(MOT1P, LOW);
+            ledcWrite(CanalM1P, 0);
         }
         if (vitesse2 >= 0)
         {
-            ledcWrite(CanalM2N, offsetDZ2+vitesse2); // Attacher MOT1P au canal 0
-            digitalWrite(MOT2P, LOW);
+            ledcWrite(CanalM2N, offsetDZ2+vitesse2);
+            ledcWrite(CanalM2P, 0);
         }
         else{
-            ledcWrite(CanalM2P, offsetDZ2+abs(vitesse2)); // Attacher MOT1P au canal 0
-            digitalWrite(MOT2N, LOW);
+            ledcWrite(CanalM2P, offsetDZ2+abs(vitesse2));
+            ledcWrite(CanalM2N, 0);
         } 
     }  
 }
 
 float getVitesse(void){
-    float vitesse1, vitesse2, vitesse;
     static float vitesseFiltrer;
     int32_t increment1, increment2;
     // Récupération des incréments depuis les encodeurs
@@ -165,7 +172,6 @@ float getVitesse(void){
     vitesse2 = (((float)(increment2 - lastIncrement2) / PPR) * (rayonRoue * 2 * PI)) / 0.005; // m/s;
     lastIncrement1 = increment1;
     lastIncrement2 = increment2;
-
     vitesse = (-(vitesse1 - vitesse2)) / 2.0; // Retourne la vitesse gyropode
     vitesseFiltrer =  C * vitesse + D * vitesseFiltrer;
 
@@ -228,6 +234,10 @@ void reception(char ch)
     {
       Te = valeur.toInt();
       calculCoeffFiltre();
+    }
+    if (commande == "Off")
+    {
+      offsetAngle = valeur.toFloat();
     }
 
     chaine = ""; //remetttre la chaine a 0 (écoute)
