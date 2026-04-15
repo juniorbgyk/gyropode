@@ -102,7 +102,9 @@ float getAngle() {
 
     // Calcul de l'angle via l'Accéléromètre
     angleAcc = atan2(ay, ax) * 180.0 / PI;
+     // Calcul de l'angle via le gyro
     entrerFiltre = gyroZ + angleAcc;
+    // Calcul de l'angle final filtrer
     anglefiltrer = A * entrerFiltre + B * anglefiltrer;
 
     return anglefiltrer;
